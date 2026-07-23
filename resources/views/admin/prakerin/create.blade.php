@@ -47,7 +47,15 @@
                         </div>
                         <div class="col-md-12">
                             <label for="password" class="form-label fw-medium text-dark">Kata Sandi Default</label>
-                            <input id="password" name="password" type="text" class="form-control rounded-3 py-2" placeholder="Masukkan password default siswa (misal: password123)" value="{{ old('password') }}" required>
+                            <input id="password" name="password" type="password" minlength="8" class="form-control rounded-3 py-2" placeholder="Minimal 8 karakter" required>
+                            <small class="text-muted">Password harus minimal 8 karakter.</small>
+                            <div id="password-length-warning" class="text-danger small mt-1 d-none" role="alert" aria-live="polite">
+                                Password wajib minimal 8 karakter.
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="password_confirmation" class="form-label fw-medium text-dark">Konfirmasi Kata Sandi</label>
+                            <input id="password_confirmation" name="password_confirmation" type="password" minlength="8" class="form-control rounded-3 py-2" placeholder="Ulangi kata sandi" required>
                             <small class="text-muted">Password ini akan digunakan siswa untuk login pertama kali.</small>
                         </div>
                     </div>
@@ -101,4 +109,16 @@
         </div>
     </div>
 </div>
+
+<script>
+    const passwordInput = document.getElementById('password');
+    const passwordLengthWarning = document.getElementById('password-length-warning');
+
+    passwordInput.addEventListener('input', function () {
+        const isTooShort = this.value.length > 0 && this.value.length < 8;
+
+        passwordLengthWarning.classList.toggle('d-none', !isTooShort);
+        this.setCustomValidity(isTooShort ? 'Password wajib minimal 8 karakter.' : '');
+    });
+</script>
 @endsection

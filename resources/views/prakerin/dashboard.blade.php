@@ -115,22 +115,43 @@
                             </div>
                             <div class="col-md-6 py-1">
                                 <p class="text-dark mb-0 small" style="white-space: pre-line;">{{ $activity->activity }}</p>
-                                @if($activity->attachment_path)
-                                    <a href="{{ asset($activity->attachment_path) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-3 mt-2">
-                                        <i class="fa-solid fa-paperclip me-1"></i> Lihat Lampiran
-                                    </a>
+                                @if($activity->attachment_paths)
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        @foreach($activity->attachment_paths as $attachmentPath)
+                                            @php($isImage = in_array(strtolower(pathinfo($attachmentPath, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
+                                            @if($isImage)
+                                                <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#attachmentPreviewModal"
+                                                    data-image-url="{{ asset($attachmentPath) }}">
+                                                    <i class="fa-solid fa-image me-1"></i> Lihat Foto
+                                                </button>
+                                            @else
+                                                <a href="{{ asset($attachmentPath) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-3">
+                                                    <i class="fa-solid fa-paperclip me-1"></i> Lihat Lampiran
+                                                </a>
+                                            @endif
+                                        @endforeach
+                                    </div>
                                 @endif
+                                <button type="button" class="btn btn-sm btn-outline-success rounded-3 mt-2"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addAttachmentModal"
+                                    data-activity-id="{{ $activity->id }}">
+                                    <i class="fa-solid fa-plus me-1"></i>Tambah Foto
+                                </button>
                             </div>
-                            <div class="col-md-3 text-end">
-                                <button type="button" class="btn btn-sm btn-outline-warning rounded-3 me-1"
+                            <div class="col-md-3 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-3"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editActivityModal"
                                     data-id="{{ $activity->id }}"
                                     data-date="{{ $activity->date }}"
-                                    data-activity="{{ $activity->activity }}">
+                                    data-activity="{{ $activity->activity }}"
+                                    data-attachments='@json($activity->attachments->map(fn ($attachment) => ['id' => $attachment->id, 'url' => asset($attachment->path)]))'>
                                     <i class="fa-solid fa-pen-to-square"></i> Edit
                                 </button>
-                                <form action="{{ route('prakerin.activities.destroy', $activity->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus catatan kegiatan ini?')">
+                                <form action="{{ route('prakerin.activities.destroy', $activity->id) }}" method="POST" class="d-inline-flex" onsubmit="return confirm('Apakah Anda yakin ingin menghapus catatan kegiatan ini?')">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger rounded-3">
@@ -146,6 +167,28 @@
                         Belum ada kegiatan yang dicatat. Silakan isi form di atas.
                     </div>
                 @endforelse
+
+                @if($activities->hasPages())
+                    <div class="d-flex justify-content-center mt-4">
+                        <nav aria-label="Navigasi halaman riwayat jurnal">
+                            <ul class="pagination mb-0">
+                                <li class="page-item {{ $activities->onFirstPage() ? 'disabled' : '' }}">
+                                    <a class="page-link" href="{{ $activities->previousPageUrl() ?? '#' }}" aria-label="Sebelumnya">&laquo;</a>
+                                </li>
+
+                                @foreach($activities->getUrlRange(1, $activities->lastPage()) as $page => $url)
+                                    <li class="page-item {{ $page == $activities->currentPage() ? 'active' : '' }}">
+                                        <a class="page-link" href="{{ $url }}">{{ $page }}</a>
+                                    </li>
+                                @endforeach
+
+                                <li class="page-item {{ $activities->hasMorePages() ? '' : 'disabled' }}">
+                                    <a class="page-link" href="{{ $activities->nextPageUrl() ?? '#' }}" aria-label="Berikutnya">&raquo;</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                @endif
             </div>
         @else
             <!-- Display profile placeholder when NOT approved -->
@@ -158,8 +201,51 @@
     </div>
 </div>
 
-<!-- Bootstrap Edit Activity Modal (Only if approved) -->
 @if($profile && $profile->status === 'approved')
+<div class="modal fade" id="attachmentPreviewModal" tabindex="-1" aria-labelledby="attachmentPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title font-title text-dark" id="attachmentPreviewModalLabel">
+                    <i class="fa-solid fa-image text-primary me-2"></i>Preview Foto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <img id="attachmentPreviewImage" src="" alt="Preview lampiran" class="img-fluid rounded-3" style="max-height: 70vh;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addAttachmentModal" tabindex="-1" aria-labelledby="addAttachmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title font-title text-dark" id="addAttachmentModalLabel">
+                    <i class="fa-solid fa-images text-success me-2"></i>Tambah Foto Dokumentasi
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <form id="addAttachmentForm" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body pt-0">
+                    <label for="additional_attachments" class="form-label fw-medium text-secondary small">Pilih Foto</label>
+                    <input type="file" name="attachments[]" id="additional_attachments" class="form-control rounded-3" accept=".jpg,.jpeg,.png" multiple required>
+                    <small class="text-muted d-block mt-1">Pilih satu atau beberapa foto sekaligus. Maksimal 10 foto, masing-masing 5 MB.</small>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-gradient-success rounded-3 px-4">
+                        <i class="fa-solid fa-upload me-1"></i>Tambahkan Foto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Edit Activity Modal (Only if approved) -->
 <div class="modal fade" id="editActivityModal" tabindex="-1" aria-labelledby="editActivityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -172,9 +258,13 @@
                 @method('PUT')
                 <div class="modal-body pt-3">
                     <div class="mb-3">
-                        <label for="edit_attachment" class="form-label fw-medium text-secondary small">Lampiran File</label>
-                        <input type="file" name="attachment" id="edit_attachment" class="form-control rounded-3 py-2" required accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
-                        <small class="text-muted d-block mt-1">Maksimal 5 MB. Unggah ulang file jika ingin menggantinya.</small>
+                        <label for="edit_attachment" class="form-label fw-medium text-secondary small">Ganti Lampiran Lama (opsional)</label>
+                        <input type="file" name="attachment" id="edit_attachment" class="form-control rounded-3 py-2" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+                        <small class="text-muted d-block mt-1">Gunakan ini untuk mengganti lampiran lama. Foto tambahan dapat diganti atau dihapus di bawah.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium text-secondary small">Foto Dokumentasi</label>
+                        <div id="editAttachmentsList" class="vstack gap-2"></div>
                     </div>
                     <div class="mb-3">
                         <label for="edit_activity" class="form-label fw-medium text-secondary small">Deskripsi Kegiatan</label>
@@ -203,6 +293,7 @@
                 // Extract info from data-* attributes
                 const id = button.getAttribute('data-id');
                 const activity = button.getAttribute('data-activity');
+                const attachments = JSON.parse(button.getAttribute('data-attachments') || '[]');
 
                 // Update form action url dynamically
                 const form = editModal.querySelector('#editActivityForm');
@@ -211,9 +302,63 @@
                 // Update input values
                 editModal.querySelector('#edit_activity').value = activity;
                 editModal.querySelector('#edit_attachment').value = '';
+
+                const attachmentList = editModal.querySelector('#editAttachmentsList');
+                const csrfToken = document.querySelector('input[name="_token"]').value;
+                attachmentList.innerHTML = '';
+
+                if (attachments.length === 0) {
+                    attachmentList.innerHTML = '<small class="text-muted">Belum ada foto tambahan.</small>';
+                    return;
+                }
+
+                attachments.forEach(function (attachment) {
+                    const item = document.createElement('div');
+                    item.className = 'border rounded-3 p-2 d-flex align-items-center gap-2';
+                    item.innerHTML = `
+                        <img src="${attachment.url}" alt="Foto dokumentasi" class="rounded-2" style="width: 56px; height: 56px; object-fit: cover;">
+                        <div class="d-flex flex-wrap gap-2 ms-auto">
+                            <form action="/prakerin/activities/${id}/attachments/${attachment.id}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+                                <input type="hidden" name="_token" value="${csrfToken}">
+                                <input type="hidden" name="_method" value="PUT">
+                                <input type="file" name="attachment" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" required>
+                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-3">Ganti</button>
+                            </form>
+                            <form action="/prakerin/activities/${id}/attachments/${attachment.id}" method="POST" onsubmit="return confirm('Hapus foto ini?')">
+                                <input type="hidden" name="_token" value="${csrfToken}">
+                                <input type="hidden" name="_method" value="DELETE">
+                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3">Hapus</button>
+                            </form>
+                        </div>`;
+                    attachmentList.appendChild(item);
+                });
             });
         }
     });
 </script>
 @endif
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const attachmentModal = document.getElementById('attachmentPreviewModal');
+        const attachmentImage = document.getElementById('attachmentPreviewImage');
+
+        if (attachmentModal && attachmentImage) {
+            attachmentModal.addEventListener('show.bs.modal', function (event) {
+                attachmentImage.src = event.relatedTarget.getAttribute('data-image-url');
+            });
+            attachmentModal.addEventListener('hidden.bs.modal', function () {
+                attachmentImage.src = '';
+            });
+        }
+
+        const addAttachmentModal = document.getElementById('addAttachmentModal');
+        if (addAttachmentModal) {
+            addAttachmentModal.addEventListener('show.bs.modal', function (event) {
+                const activityId = event.relatedTarget.getAttribute('data-activity-id');
+                addAttachmentModal.querySelector('#addAttachmentForm').action = `/prakerin/activities/${activityId}/attachments`;
+            });
+        }
+    });
+</script>
 @endsection

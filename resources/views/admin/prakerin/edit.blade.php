@@ -49,7 +49,6 @@
                         <div class="col-md-12">
                             <label for="password" class="form-label fw-medium text-dark">Kata Sandi Baru (Opsional)</label>
                             <input id="password" name="password" type="text" class="form-control rounded-3 py-2" placeholder="Kosongkan jika tidak ingin mengubah kata sandi">
-                            <small class="text-muted">Isi kolom ini jika Anda ingin mengubah kata sandi login peserta.</small>
                         </div>
                     </div>
                 </div>

@@ -40,7 +40,9 @@ class AdminController extends Controller
             });
         }
 
-        $students = $query->orderBy('created_at', 'desc')->get();
+        $students = $query->orderBy('created_at', 'desc')
+            ->paginate(5)
+            ->withQueryString();
 
         $recentActivities = Activity::with('user:id,name')
             ->orderBy('date', 'desc')
@@ -102,13 +104,16 @@ class AdminController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'nisn' => ['required', 'string', 'max:20'],
             'school' => ['required', 'string', 'max:255'],
             'department' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'end_date' => ['required', 'date'],
             'status' => ['required', 'in:pending,approved,rejected'],
+        ], [
+            'password.min' => 'Password harus minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
         DB::beginTransaction();
@@ -163,7 +168,7 @@ class AdminController extends Controller
             'school' => ['required', 'string', 'max:255'],
             'department' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'end_date' => ['required', 'date'],
             'status' => ['required', 'in:pending,approved,rejected'],
         ]);
 
@@ -216,11 +221,11 @@ class AdminController extends Controller
     public function activities($id)
     {
         $student = User::where('role', 'prakerin')->with('prakerinProfile')->findOrFail($id);
-        $activities = Activity::where('user_id', $id)
+        $activities = Activity::with('attachments')->where('user_id', $id)
             ->orderBy('date', 'desc')
             ->orderBy('submitted_at', 'desc')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(5);
 
         return view('admin.prakerin.activities', compact('student', 'activities'));
     }

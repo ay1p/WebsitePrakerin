@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
+use App\Models\ActivityAttachment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -20,9 +21,9 @@ class PrakerinController extends Controller
         // Only load activities if approved
         $activities = [];
         if ($profile && $profile->status === 'approved') {
-            $activities = Activity::where('user_id', $user->id)
+            $activities = Activity::with('attachments')->where('user_id', $user->id)
                 ->orderBy('date', 'desc')
-                ->get();
+                ->paginate(5);
         }
 
         return view('prakerin.dashboard', compact('user', 'profile', 'activities'));
@@ -36,7 +37,7 @@ class PrakerinController extends Controller
         $user = Auth::user();
 
         // Security check: must be approved
-        if (!$user->isApprovedPrakerin()) {
+        if (!$user->prakerinProfile || $user->prakerinProfile->status !== 'approved') {
             return back()->withErrors(['error' => 'Anda tidak diizinkan mengisi kegiatan sebelum status divalidasi oleh Admin.']);
         }
 
@@ -73,7 +74,7 @@ class PrakerinController extends Controller
         $user = Auth::user();
 
         // Security check: must be approved
-        if (!$user->isApprovedPrakerin()) {
+        if (!$user->prakerinProfile || $user->prakerinProfile->status !== 'approved') {
             return back()->withErrors(['error' => 'Akses ditolak.']);
         }
 
@@ -105,6 +106,90 @@ class PrakerinController extends Controller
     }
 
     /**
+     * Add documentation photos to an existing daily activity.
+     */
+    public function addAttachments(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user->prakerinProfile || $user->prakerinProfile->status !== 'approved') {
+            return back()->withErrors(['error' => 'Akses ditolak.']);
+        }
+
+        $activity = Activity::where('id', $id)->where('user_id', $user->id)->firstOrFail();
+
+        $request->validate([
+            'attachments' => ['required', 'array', 'min:1', 'max:10'],
+            'attachments.*' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+        ], [
+            'attachments.required' => 'Minimal satu foto dokumentasi wajib dipilih.',
+            'attachments.max' => 'Maksimal 10 foto dapat ditambahkan sekaligus.',
+            'attachments.*.mimes' => 'Foto harus berformat JPG, JPEG, atau PNG.',
+            'attachments.*.max' => 'Ukuran setiap foto maksimal 5 MB.',
+        ]);
+
+        foreach ($request->file('attachments') as $file) {
+            ActivityAttachment::create([
+                'activity_id' => $activity->id,
+                'path' => $this->storeAttachment($file),
+            ]);
+        }
+
+        return redirect()->route('prakerin.dashboard')->with('success', 'Foto dokumentasi berhasil ditambahkan.');
+    }
+
+    /**
+     * Replace one documentation photo on an existing activity.
+     */
+    public function replaceAttachment(Request $request, $activityId, $attachmentId)
+    {
+        $user = Auth::user();
+
+        if (!$user->prakerinProfile || $user->prakerinProfile->status !== 'approved') {
+            return back()->withErrors(['error' => 'Akses ditolak.']);
+        }
+
+        $activity = Activity::where('id', $activityId)->where('user_id', $user->id)->firstOrFail();
+        $attachment = ActivityAttachment::where('activity_id', $activity->id)
+            ->whereKey($attachmentId)
+            ->firstOrFail();
+
+        $request->validate([
+            'attachment' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+        ], [
+            'attachment.mimes' => 'Foto harus berformat JPG, JPEG, atau PNG.',
+            'attachment.max' => 'Ukuran foto maksimal 5 MB.',
+        ]);
+
+        $this->deleteAttachment($attachment->path);
+        $attachment->update(['path' => $this->storeAttachment($request->file('attachment'))]);
+
+        return redirect()->route('prakerin.dashboard')->with('success', 'Foto dokumentasi berhasil diganti.');
+    }
+
+    /**
+     * Delete one documentation photo from an existing activity.
+     */
+    public function deleteAttachmentRecord($activityId, $attachmentId)
+    {
+        $user = Auth::user();
+
+        if (!$user->prakerinProfile || $user->prakerinProfile->status !== 'approved') {
+            return back()->withErrors(['error' => 'Akses ditolak.']);
+        }
+
+        $activity = Activity::where('id', $activityId)->where('user_id', $user->id)->firstOrFail();
+        $attachment = ActivityAttachment::where('activity_id', $activity->id)
+            ->whereKey($attachmentId)
+            ->firstOrFail();
+
+        $this->deleteAttachment($attachment->path);
+        $attachment->delete();
+
+        return redirect()->route('prakerin.dashboard')->with('success', 'Foto dokumentasi berhasil dihapus.');
+    }
+
+    /**
      * Delete an activity.
      */
     public function destroyActivity($id)
@@ -112,11 +197,14 @@ class PrakerinController extends Controller
         $user = Auth::user();
 
         // Security check: must be approved
-        if (!$user->isApprovedPrakerin()) {
+        if (!$user->prakerinProfile || $user->prakerinProfile->status !== 'approved') {
             return back()->withErrors(['error' => 'Akses ditolak.']);
         }
 
         $activity = Activity::where('id', $id)->where('user_id', $user->id)->firstOrFail();
+        foreach ($activity->attachments as $attachment) {
+            $this->deleteAttachment($attachment->path);
+        }
         $this->deleteAttachment($activity->attachment_path);
         $activity->delete();
 

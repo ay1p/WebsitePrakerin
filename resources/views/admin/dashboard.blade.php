@@ -255,5 +255,27 @@
             </tbody>
         </table>
     </div>
+
+    @if($students->hasPages())
+        <div class="d-flex justify-content-center mt-4">
+            <nav aria-label="Navigasi halaman daftar peserta">
+                <ul class="pagination mb-0">
+                    <li class="page-item {{ $students->onFirstPage() ? 'disabled' : '' }}">
+                        <a class="page-link" href="{{ $students->previousPageUrl() ?? '#' }}" aria-label="Sebelumnya">&laquo;</a>
+                    </li>
+
+                    @foreach($students->getUrlRange(1, $students->lastPage()) as $page => $url)
+                        <li class="page-item {{ $page == $students->currentPage() ? 'active' : '' }}">
+                            <a class="page-link" href="{{ $url }}">{{ $page }}</a>
+                        </li>
+                    @endforeach
+
+                    <li class="page-item {{ $students->hasMorePages() ? '' : 'disabled' }}">
+                        <a class="page-link" href="{{ $students->nextPageUrl() ?? '#' }}" aria-label="Berikutnya">&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    @endif
 </div>
 @endsection

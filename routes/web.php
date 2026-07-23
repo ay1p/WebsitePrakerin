@@ -28,14 +28,14 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('aut
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::post('/prakerin/{id}/validate', [AdminController::class, 'validatePrakerin'])->name('prakerin.validate');
-    
+
     // CRUD for Prakerin Students
     Route::get('/prakerin/create', [AdminController::class, 'create'])->name('prakerin.create');
     Route::post('/prakerin', [AdminController::class, 'store'])->name('prakerin.store');
     Route::get('/prakerin/{id}/edit', [AdminController::class, 'edit'])->name('prakerin.edit');
     Route::put('/prakerin/{id}', [AdminController::class, 'update'])->name('prakerin.update');
     Route::delete('/prakerin/{id}', [AdminController::class, 'destroy'])->name('prakerin.destroy');
-    
+
     // View activities
     Route::get('/prakerin/{id}/activities', [AdminController::class, 'activities'])->name('prakerin.activities');
 });
@@ -43,9 +43,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 // Prakerin Student Panel Routes
 Route::middleware(['auth', 'prakerin'])->prefix('prakerin')->name('prakerin.')->group(function () {
     Route::get('/', [PrakerinController::class, 'dashboard'])->name('dashboard');
-    
+
     // CRUD for student daily activities
     Route::post('/activities', [PrakerinController::class, 'storeActivity'])->name('activities.store');
+    Route::post('/activities/{id}/attachments', [PrakerinController::class, 'addAttachments'])->name('activities.attachments.store');
+    Route::put('/activities/{activityId}/attachments/{attachmentId}', [PrakerinController::class, 'replaceAttachment'])->name('activities.attachments.update');
+    Route::delete('/activities/{activityId}/attachments/{attachmentId}', [PrakerinController::class, 'deleteAttachmentRecord'])->name('activities.attachments.destroy');
     Route::put('/activities/{id}', [PrakerinController::class, 'updateActivity'])->name('activities.update');
     Route::delete('/activities/{id}', [PrakerinController::class, 'destroyActivity'])->name('activities.destroy');
 });

@@ -55,10 +55,24 @@
                         <div class="col-md-9 ps-md-4">
                             <h6 class="fw-semibold text-primary mb-1">Catatan Kegiatan</h6>
                             <p class="text-dark mb-2" style="white-space: pre-line;">{{ $activity->activity }}</p>
-                            @if($activity->attachment_path)
-                                <a href="{{ asset($activity->attachment_path) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-3">
-                                    <i class="fa-solid fa-paperclip me-1"></i>Lihat Lampiran
-                                </a>
+                            @if($activity->attachment_paths)
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach($activity->attachment_paths as $attachmentPath)
+                                        @php($isImage = in_array(strtolower(pathinfo($attachmentPath, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
+                                        @if($isImage)
+                                            <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#attachmentPreviewModal"
+                                                data-image-url="{{ asset($attachmentPath) }}">
+                                                <i class="fa-solid fa-image me-1"></i>Lihat Foto
+                                            </button>
+                                        @else
+                                            <a href="{{ asset($attachmentPath) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-3">
+                                                <i class="fa-solid fa-paperclip me-1"></i>Lihat Lampiran
+                                            </a>
+                                        @endif
+                                    @endforeach
+                                </div>
                             @endif
                         </div>
                     </div>
@@ -69,7 +83,61 @@
                     Belum ada jurnal kegiatan yang diinput oleh peserta ini.
                 </div>
             @endforelse
+
+            @if($activities->hasPages())
+                <div class="d-flex justify-content-center mt-4">
+                    <nav aria-label="Navigasi halaman jurnal kegiatan">
+                        <ul class="pagination mb-0">
+                            <li class="page-item {{ $activities->onFirstPage() ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ $activities->previousPageUrl() ?? '#' }}" aria-label="Sebelumnya">&laquo;</a>
+                            </li>
+
+                            @foreach($activities->getUrlRange(1, $activities->lastPage()) as $page => $url)
+                                <li class="page-item {{ $page == $activities->currentPage() ? 'active' : '' }}">
+                                    <a class="page-link" href="{{ $url }}">{{ $page }}</a>
+                                </li>
+                            @endforeach
+
+                            <li class="page-item {{ $activities->hasMorePages() ? '' : 'disabled' }}">
+                                <a class="page-link" href="{{ $activities->nextPageUrl() ?? '#' }}" aria-label="Berikutnya">&raquo;</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            @endif
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="attachmentPreviewModal" tabindex="-1" aria-labelledby="attachmentPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title font-title text-dark" id="attachmentPreviewModalLabel">
+                    <i class="fa-solid fa-image text-primary me-2"></i>Preview Foto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <img id="attachmentPreviewImage" src="" alt="Preview lampiran" class="img-fluid rounded-3" style="max-height: 70vh;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const attachmentModal = document.getElementById('attachmentPreviewModal');
+        const attachmentImage = document.getElementById('attachmentPreviewImage');
+
+        if (attachmentModal && attachmentImage) {
+            attachmentModal.addEventListener('show.bs.modal', function (event) {
+                attachmentImage.src = event.relatedTarget.getAttribute('data-image-url');
+            });
+            attachmentModal.addEventListener('hidden.bs.modal', function () {
+                attachmentImage.src = '';
+            });
+        }
+    });
+</script>
 @endsection
